@@ -48,6 +48,7 @@
   <Project Path="Unity.TextMeshPro.Editor.csproj" />
   <Project Path="Unity.AppUI.Navigation.Editor.csproj" />
   <Project Path="Unity.AppUI.InternalAPIBridge.csproj" />
+  <Project Path="Unity.Rider.Editor.csproj" />
   <Project Path="Unity.VisualScripting.State.csproj" />
   <Project Path="Unity.AI.Navigation.Updater.csproj" />
   <Project Path="UnityEditor.UI.csproj" />

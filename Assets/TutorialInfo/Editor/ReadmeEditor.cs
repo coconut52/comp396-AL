@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 
 [CustomEditor(typeof(Readme))]
 [InitializeOnLoad]
-sealed class ReadmeEditor : Editor
+sealed class ReadmeEditor : UnityEditor.Editor
 {
     static readonly string k_ShowedReadmeSessionStateName = "ReadmeEditor.showedReadme";
     static readonly string k_ReadmeSourceDirectory = "Assets/TutorialInfo";

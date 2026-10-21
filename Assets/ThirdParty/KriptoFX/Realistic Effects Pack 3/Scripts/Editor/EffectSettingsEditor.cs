@@ -4,7 +4,7 @@ using System.Collections;
 
 [CustomEditor(typeof(EffectSettings))]
 [CanEditMultipleObjects]
-public class EffectSettingsEditor : Editor
+public class EffectSettingsEditor : UnityEditor.Editor
 {
   public SerializedProperty
     EffectTypeProp,
