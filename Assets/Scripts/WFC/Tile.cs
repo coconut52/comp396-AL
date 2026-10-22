@@ -81,7 +81,7 @@ public class Tile
         currentType = type;
         isCollapsed = true;
         Domain.Clear();
-        Domain.Add(type);
+        Domain.Add(type); // Entropy is 1
     }
 
     public bool Supports(TileDirection side, TileType neighbourType)

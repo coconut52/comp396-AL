@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using Unity.AI.Navigation;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -21,6 +22,7 @@ public class CollapseResolver : MonoBehaviour
     [Tooltip("World-space spacing between cells. The template quad is 1 unit, so use 1.")]
     [SerializeField] private float tileSize = 1f;
     [SerializeField] private Transform gridRoot;
+    [SerializeField] private NavMeshSurface navMesh;
 
     [Header("Tile set (only entries with a material are used)")]
     [SerializeField] private MaterialEntry[] materials;
@@ -48,6 +50,10 @@ public class CollapseResolver : MonoBehaviour
     [SerializeField] private Texture2D maskCornerSE;
     [SerializeField] private Texture2D maskCornerSW;
 
+    [SerializeField] private float createTimer = 1f;
+    private float timer = 0f;
+    private bool IsAutoCreate = false;
+
     private void Start()
     {
         if (tilePrefab == null)
@@ -55,6 +61,10 @@ public class CollapseResolver : MonoBehaviour
             Debug.LogError("[WFC] No tile prefab assigned.");
             enabled = false;
             return;
+        }
+        if (navMesh == null)
+        {
+            navMesh = gameObject.GetOrAddComponent<NavMeshSurface>();
         }
 
         materialLookup.Clear();
@@ -80,6 +90,7 @@ public class CollapseResolver : MonoBehaviour
 
         gridCreator = new GridCreator();
         gridCreator.InitializeTileGrid(width, height, tilePrefab, activeTypes.ToArray(), tileSize, gridRoot);
+        navMesh.BuildNavMesh();
         RefreshViews();
     }
 
@@ -88,7 +99,16 @@ public class CollapseResolver : MonoBehaviour
         if (gridCreator == null || Keyboard.current == null) return;
 
         if (Keyboard.current.spaceKey.wasPressedThisFrame) StepOnce();
-
+        if (Keyboard.current.pKey.wasPressedThisFrame) IsAutoCreate = !IsAutoCreate;
+        if (IsAutoCreate)
+        {
+            timer += Time.deltaTime;
+            if (timer > createTimer)
+            {
+                StepOnce();
+                timer = 0;
+            }
+        }
         if (Keyboard.current.rKey.wasPressedThisFrame)
         {
             gridCreator.ResetDomains();
@@ -105,6 +125,9 @@ public class CollapseResolver : MonoBehaviour
         {
             case StepResult.Complete:
                 Debug.Log("[WFC] Grid complete.");
+                IsAutoCreate = false;
+                // After completion, we bake the navmesh surface.
+                navMesh.BuildNavMesh();
                 break;
 
             case StepResult.Contradiction:
