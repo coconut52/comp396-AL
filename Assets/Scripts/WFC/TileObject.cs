@@ -6,6 +6,12 @@ using UnityEngine.AI;
 
 public class TileObject : MonoBehaviour
 {
+    private const float TileSize = 10f;
+    private const float HalfTileSize = TileSize / 2f;
+    private const float QuarterTileOffset = TileSize / 4f;
+    private const float ModifierHeight = 2f;
+    private const float ModifierCenterY = 0.5f;
+
     [SerializeField] private Renderer target;
     [SerializeField] private Material domainMaterial;
     [SerializeField] private TextMesh countLabel;
@@ -29,6 +35,8 @@ public class TileObject : MonoBehaviour
 
     public void ShowDomain(int remaining, int total, Color fullColor, Color almostColor)
     {
+        DisableNavigationBlockers();
+
         if (target == null) return;
         if (domainMaterial != null) target.sharedMaterial = domainMaterial;
 
@@ -40,57 +48,20 @@ public class TileObject : MonoBehaviour
 
     public void ShowCollapsed(Material material)
     {
-        if (target == null) return;
-
-        ClearTint();
-        if (material != null) target.sharedMaterial = material;
-        if (countLabel != null) countLabel.text = string.Empty;
-        if (tile.currentType.ToString().Contains("Water"))
+        if (target != null)
         {
-            navModifier = gameObject.GetOrAddComponent<NavMeshModifierVolume>();
-            navModifier.area = 1; // Non-Walkable option.
-            string[] tokens = tile.currentType.ToString().Split('_');
-            if (tokens.Length > 0 && tile.currentType.ToString().Contains("_C_") && tile.currentType.ToString().Contains("_BA"))
-            {
-                string cornerKey = tokens[1] == "C" ? $"C_{tokens[2]}" : tokens[1];
-
-                Vector2 direction = cornerKey switch
-                {
-                    "C_NW" => new Vector2(-1f, 1f),
-                    "C_NE" => new Vector2(1f, 1f),
-                    "C_SE" => new Vector2(1, -1f),
-                    "C_SW" => new Vector2(-1, -1f),
-                    _ => new Vector2(0, 0),
-                };
-                navModifier.center = new Vector3(2.5f * direction.x, 0.5f, 2.5f * direction.y);
-                navModifier.size = new Vector3(5f, 2f, 5f);
-            }
-            else if (tokens.Length > 0 && tile.currentType.ToString().Contains("_H_") || tile.currentType.ToString().Contains("_V_"))
-            {
-                string sideKey = tokens[1] == "H" ? $"H_{tokens[2]}" : tokens[1] == "V" ? $"V_{tokens[2]}" : tokens[1];
-
-                Vector2 side = sideKey switch
-                {
-                    "H_AB" => Vector2.down,
-                    "H_BA" => Vector2.up,
-                    "V_AB" => Vector2.right,
-                    "V_BA" => Vector2.left,
-                    _ => Vector2.zero,
-                };
-
-                navModifier.center = new Vector3(2.5f * side.x, 0.5f, 2.5f * side.y);
-                navModifier.size = new Vector3(5f + (side.y * 5), 2f, 5f + (side.x * 5));
-            }
-            else
-            {
-                navModifier.center = new Vector3(0f, 0.5f, 0f);
-                navModifier.size = new Vector3(10f, 2f, 10f);
-            }
+            ClearTint();
+            if (material != null) target.sharedMaterial = material;
         }
+
+        if (countLabel != null) countLabel.text = string.Empty;
+        ConfigureNavigationBlockers();
     }
 
     public void ShowContradiction(Color color)
     {
+        DisableNavigationBlockers();
+
         if (target == null) return;
 
         if (domainMaterial != null) target.sharedMaterial = domainMaterial;
@@ -115,5 +86,127 @@ public class TileObject : MonoBehaviour
 
         block.Clear();
         target.SetPropertyBlock(block);
+    }
+
+    private void ConfigureNavigationBlockers()
+    {
+        DisableNavigationBlockers();
+
+        if (tile == null) return;
+
+        string tileName = tile.currentType.ToString();
+        if (!tileName.Contains("Water")) return;
+
+        string[] tokens = tileName.Split('_');
+
+        // A full Water tile needs one blocker covering the complete 10 x 10 tile.
+        if (tokens.Length == 1)
+        {
+            Vector3 center = new Vector3(0f, ModifierCenterY, 0f);
+            SetNavigationBlocker(0, center, new Vector3(TileSize, ModifierHeight, TileSize));
+            return;
+        }
+
+        if (tokens.Length >= 3 && (tokens[1] == "H" || tokens[1] == "V"))
+        {
+            ConfigureHalfTile(tokens[1], tokens[2]);
+            return;
+        }
+
+        if (tokens.Length >= 4 && tokens[1] == "C")
+        {
+            ConfigureCornerTile(tokens[2], tokens[3]);
+        }
+    }
+
+    private void ConfigureHalfTile(string split, string order)
+    {
+        Vector2 waterSide = $"{split}_{order}" switch
+        {
+            "H_AB" => Vector2.down,
+            "H_BA" => Vector2.up,
+            "V_AB" => Vector2.right,
+            "V_BA" => Vector2.left,
+            _ => Vector2.zero,
+        };
+
+        if (waterSide == Vector2.zero) return;
+
+        Vector3 center = new Vector3(
+            QuarterTileOffset * waterSide.x,
+            ModifierCenterY,
+            QuarterTileOffset * waterSide.y);
+
+        Vector3 size = split == "H"
+            ? new Vector3(TileSize, ModifierHeight, HalfTileSize)
+            : new Vector3(HalfTileSize, ModifierHeight, TileSize);
+
+        SetNavigationBlocker(0, center, size);
+    }
+
+    private void ConfigureCornerTile(string corner, string order)
+    {
+        Vector2 cornerDirection = corner switch
+        {
+            "NW" => new Vector2(-1f, 1f),
+            "NE" => new Vector2(1f, 1f),
+            "SE" => new Vector2(1f, -1f),
+            "SW" => new Vector2(-1f, -1f),
+            _ => Vector2.zero,
+        };
+
+        if (cornerDirection == Vector2.zero) return;
+
+        if (order == "BA")
+        {
+            // BA corner tiles contain water in the named quarter.
+            Vector3 center = new Vector3(
+                QuarterTileOffset * cornerDirection.x,
+                ModifierCenterY,
+                QuarterTileOffset * cornerDirection.y);
+
+            SetNavigationBlocker(0, center, new Vector3(HalfTileSize, ModifierHeight, HalfTileSize));
+            return;
+        }
+
+        if (order != "AB") return;
+
+        // AB corner tiles contain water everywhere except the named quarter.
+        // Two non-overlapping boxes approximate that three-quarter shape.
+        Vector3 oppositeHalfCenter = new Vector3(
+            -QuarterTileOffset * cornerDirection.x,
+            ModifierCenterY,
+            0f);
+
+        Vector3 remainingQuarterCenter = new Vector3(
+            QuarterTileOffset * cornerDirection.x,
+            ModifierCenterY,
+            -QuarterTileOffset * cornerDirection.y);
+
+        SetNavigationBlocker(0, oppositeHalfCenter, new Vector3(HalfTileSize, ModifierHeight, TileSize));
+        SetNavigationBlocker(1, remainingQuarterCenter, new Vector3(HalfTileSize, ModifierHeight, HalfTileSize));
+    }
+
+    private void SetNavigationBlocker(int index, Vector3 center, Vector3 size)
+    {
+        NavMeshModifierVolume[] modifiers = GetComponents<NavMeshModifierVolume>();
+        NavMeshModifierVolume modifier = index < modifiers.Length
+            ? modifiers[index]
+            : gameObject.AddComponent<NavMeshModifierVolume>();
+
+        modifier.enabled = true;
+        modifier.area = NavMesh.GetAreaFromName("Not Walkable");
+        modifier.center = center;
+        modifier.size = size;
+
+        if (index == 0) navModifier = modifier;
+    }
+
+    private void DisableNavigationBlockers()
+    {
+        foreach (NavMeshModifierVolume modifier in GetComponents<NavMeshModifierVolume>())
+        {
+            modifier.enabled = false;
+        }
     }
 }
