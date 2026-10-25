@@ -7,7 +7,7 @@ namespace UnityStandardAssets.CinematicEffects
 {
     [CanEditMultipleObjects]
     [CustomEditor(typeof(Bloom))]
-    public class BloomEditor : Editor
+    public class BloomEditor : UnityEditor.Editor
     {
         [NonSerialized]
         private List<SerializedProperty> m_Properties = new List<SerializedProperty>();

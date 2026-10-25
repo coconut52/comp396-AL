@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "com.unity.ai.navigation": {
-      "version": "2.0.14",
+      "version": "2.0.16",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -82,6 +82,13 @@
       "depth": 2,
       "source": "builtin",
       "dependencies": {}
+    },
+    "com.unity.ide.rider": {
+      "version": "3.1.0",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://packages.unity.com"
     },
     "com.unity.ide.visualstudio": {
       "version": "2.0.28",
